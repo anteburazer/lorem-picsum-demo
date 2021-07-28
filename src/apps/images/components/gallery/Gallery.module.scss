@@ -1,0 +1,24 @@
+@import '~bootstrap/scss/functions';
+@import '~bootstrap/scss/variables';
+@import '~bootstrap/scss/mixins/_breakpoints';
+
+.gallery {
+  padding-bottom: 20px;
+}
+
+.itemContainer {
+  padding-bottom: 20px;
+}
+
+.item {
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  height: 200px;
+}
+
+@include media-breakpoint-only(xs) {
+  .item {
+    height: 300px;
+  }
+}

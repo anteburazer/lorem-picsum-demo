@@ -1,0 +1,15 @@
+@import '~bootstrap/scss/functions';
+@import '~bootstrap/scss/variables';
+@import '~bootstrap/scss/mixins/_breakpoints';
+@import 'styles/core/variables';
+
+.imagePlacefolder {
+  background-color: $gray-3;
+  height: 400px;
+}
+
+@include media-breakpoint-down(md) {
+  .imagePlacefolder {
+    height: 300px;
+  }
+}

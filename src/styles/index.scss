@@ -1,0 +1,9 @@
+// Vendors original styles
+@import '~bootstrap/scss/bootstrap'; // Bootstrap original styles
+@import 'react-bootstrap-typeahead/css/Typeahead.css'; // Typeahead original styles
+
+// Vendors overrides
+@import 'styles/vendors/typeahead/index.scss'; // Typeahead overrides
+
+// Custom styles
+@import 'styles/core/index.scss';
