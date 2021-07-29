@@ -1,12 +1,19 @@
-import { ImageMode, ImageSettings, ImageModeOption } from 'apps/images/models';
+import {
+  ImageMode,
+  ImageSettings,
+  ImageModeOption,
+  ImageLocalStorageKeys,
+  ImageWithSettings
+} from 'apps/images/models';
 import Config from 'apps/images/Config';
 import AppConfig from 'core/Config';
+import { localStorage } from 'core/storage/LocalStorage';
 
 export const defaultImageSettings = {
-  width: 0,
-  height: 0,
+  width: 1,
+  height: 1,
   mode: [],
-  blurValue: 0
+  blurValue: 1,
 };
 
 export const getImageUrl = (imageId: string, settings: ImageSettings): string => {
@@ -39,3 +46,20 @@ export const getImageModeOptions = (): ImageModeOption[] => (
     value: mode
   }))
 );
+
+export const loadImageWithSettingsFromStorage = (): ImageWithSettings | undefined => {
+  const imageWithSettingsStringified = localStorage.getItemSync(ImageLocalStorageKeys.imageWithSettings);
+
+  if (imageWithSettingsStringified) {
+    try {
+      const imageWithSettings = JSON.parse(imageWithSettingsStringified);
+      console.log('load Settings From Storage');          
+      return imageWithSettings;
+    } catch {
+      console.log('Parsing image settings failed');
+      return undefined;
+    }
+  }
+
+  return undefined;
+};

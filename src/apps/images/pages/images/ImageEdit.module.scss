@@ -1,0 +1,10 @@
+@import 'styles/core/variables';
+
+.imageContainer {
+  background-color: $gray-3;
+  padding: 0;
+
+  img {
+    max-width: 100%;
+  }
+}

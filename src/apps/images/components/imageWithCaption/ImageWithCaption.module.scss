@@ -1,0 +1,13 @@
+@import 'styles/core/variables';
+
+.caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35px;
+  background-color: rgba(52, 58, 64, .5);
+  display: flex;
+  align-items: center;
+  padding: 10px;
+}

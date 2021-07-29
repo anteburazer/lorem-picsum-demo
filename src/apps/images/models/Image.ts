@@ -20,13 +20,19 @@ export interface ImageFormData {
   blurValue?: number;
 }
 
-export type ImageSettings = Modify<ImageFormData , {
+export type ImageSettings = Modify<ImageFormData, {
   mode: Partial<Array<ImageMode>>;
 }>
 
-// export interface ImageSettings extends ImageFormData {
-//   mode: string[];
-// }
+export interface ImageWithSettings extends ImageSettings {
+  imageSrc: string;
+  imageId: string;
+  author: string;
+}
+
+export interface ImageUpdateData extends ImageSettings {
+  imageId: string;
+}
 
 export interface ImageModeOption {
   key: string;
@@ -36,4 +42,8 @@ export interface ImageModeOption {
 export enum ImageMode {
   greyscale = 'greyscale',
   blur = 'blur'
+}
+
+export enum ImageLocalStorageKeys {
+  imageWithSettings = 'IMAGE_WITH_SETTINGS'
 }

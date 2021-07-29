@@ -4,14 +4,14 @@ import { Typeahead } from 'react-bootstrap-typeahead';
 import RangeSlider from 'react-bootstrap-range-slider';
 import {
   ImageFormData,
-  Image,
   ImageMode,
-  ImageModeOption
+  ImageModeOption,
+  ImageSettings
 } from 'apps/images/models';
 import { getImageModeOptions } from 'apps/images/utils';
 
 interface ImageFormProps {
-  image: Image;
+  imageSettings: ImageSettings;
   disabled: boolean;
   onSubmit: (data: ImageFormData) => void;
 }
@@ -21,20 +21,25 @@ const validationRules = {
   height: { valueAsNumber: true },
 };
 
-const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
+const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit }) => {
   const {
     handleSubmit,
     register,
     watch,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm();
 
   const currentMode = watch("mode");
 
-  const isBlurModeSelected = () => (
-    currentMode?.find((mode: ImageModeOption) => mode.value === ImageMode.blur.toLowerCase())
-  );
+  const isBlurModeSelected = () => {
+    const bluredByDefault = imageSettings.mode.find((mode) => mode === ImageMode.blur);
+    const isCurrentModeSelected = currentMode?.find((mode: ImageModeOption) => mode.value === ImageMode.blur);
+
+    return isCurrentModeSelected || (!isDirty && bluredByDefault)
+      ? true
+      : false
+  };
 
   return (
     <div>
@@ -48,7 +53,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
               id="width"
               type="number"
               min={1}
-              defaultValue={image.width}
+              defaultValue={imageSettings.width}
               {...register("width", { ...validationRules.width })}
             />
 
@@ -65,7 +70,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
               id="height"
               type="number"
               min={1}
-              defaultValue={image.height}
+              defaultValue={imageSettings.height}
               {...register("height", { ...validationRules.height })}
             />
 
@@ -86,7 +91,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
               <Typeahead
                 id="mode"
                 onChange={onChange}
-                selected={value || []}
+                selected={value || imageSettings.mode.map(mode => ({ key: mode, value: mode }))}
                 options={getImageModeOptions()}
                 placeholder="Choose image mode"
                 labelKey="key"
@@ -109,7 +114,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
                 <RangeSlider
                   id="blurValue"
                   className="w-100"
-                  value={value || 1}
+                  value={value || imageSettings.blurValue}
                   min={1}
                   max={10}
                   onChange={onChange}
@@ -123,7 +128,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, disabled, onSubmit }) => {
           <button
             className="btn btn-primary"
             type="submit"
-            disabled={disabled}
+            disabled={disabled || !isDirty}
           >
             Apply changes
           </button>

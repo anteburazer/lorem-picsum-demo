@@ -1,10 +1,8 @@
-import { Image, ImageSettings } from 'apps/images/models';
+import { Image, ImageSettings, ImageWithSettings } from 'apps/images/models';
 
 export interface ImageMachineContext {
   images: Image[] | undefined;
-  selectedImage: Image | undefined;
-  imageSettings: ImageSettings;
-  imageUpdated: string | undefined;
+  imageWithSettings: ImageWithSettings | undefined;
 }
 
 export type ImageMachineState =
@@ -23,7 +21,11 @@ export type ImageMachineState =
   | {
     value: 'Updatingtem';
     context: ImageMachineContext & { selectedImage: Image };
-  }  
+  }
+  | {
+    value: 'DownloadingItem';
+    context: ImageMachineContext;
+  }
   | {
     value: 'Failed';
     context: ImageMachineContext;
@@ -32,18 +34,22 @@ export type ImageMachineState =
 export type FetchListEvent = { type: 'FETCH_LIST' }
 export type UpdateItemEvent = { type: 'UPDATE_ITEM'; data: ImageSettings }
 export type FetchItemEvent = { type: 'FETCH_ITEM'; data: string }
+export type DownloadtemEvent = { type: 'DOWNLOAD_ITEM'; data: string }
 export type SelectImageEvent = { type: 'SELECT_IMAGE'; data: Image };
 export type SetImageSettingsEvent = { type: 'SET_IMAGE_SETTINGS'; data: ImageSettings };
+export type SetImageWithSettingsEvent = { type: 'SET_IMAGE_WITH_SETTINGS'; data: ImageWithSettings | undefined };
 
 export type ImageMachineEvent =
   | FetchListEvent
   | UpdateItemEvent
   | FetchItemEvent
   | SelectImageEvent
-  | SetImageSettingsEvent;
+  | SetImageSettingsEvent
+  | SetImageWithSettingsEvent
+  | DownloadtemEvent;
 
 export enum ImageMachineErrorMessage {
-  'error.platform.fetchImages' = 'Something went wront while fetching the images'
+  'error.platform.fetchImages' = 'Something went wront while fetching the images',
 };
 
 export enum ImageMachineSuccessMessage {

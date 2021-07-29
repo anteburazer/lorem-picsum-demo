@@ -6,10 +6,14 @@ import {
   ImageMachineEvent,
   ImageMachineSuccessMessage,
   ImageMachineErrorMessage,
-  Image
+  Image,
+  ImageWithSettings,
+  ImageLocalStorageKeys
 } from 'apps/images/models';
-import { defaultImageSettings } from 'apps/images/utils';
 import { imagesRestClient } from 'apps/images/restClients';
+import { localStorage } from 'core/storage/LocalStorage';
+import { defaultImageSettings } from 'apps/images/utils';
+import { downloadImage } from 'core/utils';
 
 const errorIdleHandler = {
   actions: 'handleError',
@@ -21,9 +25,7 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
     initial: 'Idle',
     context: {
       images: [],
-      selectedImage: undefined,
-      imageSettings: defaultImageSettings,
-      imageUpdated: undefined
+      imageWithSettings: undefined
     },
     states: {
       Idle: {
@@ -36,11 +38,14 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
             target: '#FetchingItem'
           },
           UPDATE_ITEM: {              
-            target: '#Updatingtem'
+            target: '#UpdatingItem'
           },
-          SELECT_IMAGE: {
-            actions: 'assignSelectedImage'
-          }
+          SET_IMAGE_WITH_SETTINGS: {
+            actions: 'assignImageWithSettings'
+          },
+          DOWNLOAD_ITEM: {              
+            target: '#DownloadingItem'
+          },
         },
       },
       FetchingList: {
@@ -62,22 +67,39 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
         invoke: {
           src: 'fetchImage',
           onDone: {
-            actions: 'assignSelectedImage',
+            actions: [
+              'updateImageWithSettingsAfterFetch',
+              'persistImageWithSettings'
+            ],
             target: '#Idle'
           },
           onError: errorIdleHandler,
         },
       },
-      Updatingtem: {
-        id: 'Updatingtem',
+      UpdatingItem: {
+        id: 'UpdatingItem',
         invoke: {
           src: 'updateImage',
           onDone: {
-            actions: 'assignImageUpdated',
+            actions: [
+              'updateImageWithSettingsAfterUpdate',
+              'persistImageWithSettings'
+            ],
             target: '#Idle'
           },
           onError: errorIdleHandler,
-        },
+        },        
+      },
+      DownloadingItem: {
+        id: 'DownloadingItem',
+        invoke: {
+          src: 'downloadImage',
+          onDone: {
+            actions: 'createImage',
+            target: '#Idle'
+          },
+          onError: errorIdleHandler,
+        }
       },
       Failed: {
         id: 'Failed',
@@ -89,24 +111,51 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
     services: {
       fetchImages: () => imagesRestClient.getImages(1),
       fetchImage: (context, event: any) => imagesRestClient.getImage((event.data as string)),
-      updateImage: (context, event: any) => imagesRestClient.getImageBySettings(context.selectedImage?.id || '', event.data)
+      updateImage: (context, event: any) => imagesRestClient.getImageBySettings(context.imageWithSettings?.imageId || '', event.data),
+      downloadImage: (context, event: any) => imagesRestClient.downloadImage(event.data),
     },
     actions: {
       assignImages: assign<ImageMachineContext, ImageMachineEvent>({
         images: (context: ImageMachineContext, event: any) => event.data as Image[]
       }),
-      assignSelectedImage: assign<ImageMachineContext, ImageMachineEvent>({
-        selectedImage: (context: ImageMachineContext, event: any) => {
-          return event.data as Image
+      assignImageWithSettings: assign<ImageMachineContext, ImageMachineEvent>({
+        imageWithSettings: (context: ImageMachineContext, event: any) => event.data as ImageWithSettings
+      }),
+      updateImageWithSettingsAfterUpdate: assign<ImageMachineContext, ImageMachineEvent>({
+        imageWithSettings: (context: ImageMachineContext, event: any) => {
+          const t = context.imageWithSettings
+          ? {
+              ...context.imageWithSettings,
+              imageSrc: `data:image/jpeg;base64,${Buffer.from(event.data, 'binary').toString('base64')}`
+            }
+          : context.imageWithSettings;
+
+          console.log('updateImageWithSettingsAfterUpdate', t);
+          return t;
         }
       }),
-      assignImageUpdated: assign<ImageMachineContext, ImageMachineEvent>({
-        imageUpdated: (context: ImageMachineContext, event: any) => {
-          console.log(event.data)
-          const imgSrc = Buffer.from(event.data, 'binary').toString('base64');
-          return imgSrc
+      updateImageWithSettingsAfterFetch: assign<ImageMachineContext, ImageMachineEvent>({
+        imageWithSettings: (context: ImageMachineContext, event: any) => {
+          return {
+            ...defaultImageSettings,
+            width: event.data.width,
+            height: event.data.height,
+            imageId: event.data.id,
+            author: event.data.author,
+            imageSrc: event.data.download_url,
+          };
         }
-      }),      
+      }),
+      persistImageWithSettings: (context) => {
+        console.log('persistImageWithSettings', context.imageWithSettings);
+        localStorage.setItem(
+          ImageLocalStorageKeys.imageWithSettings,
+          JSON.stringify(context.imageWithSettings)
+        );
+      },
+      createImage: async (context, event: any) => {
+        downloadImage(event.data);
+      },
       handleSuccess: (context: ImageMachineContext, event: ImageMachineEvent) => {
         return toast.success(ImageMachineSuccessMessage[event.type as keyof typeof ImageMachineSuccessMessage])
       },

@@ -18,6 +18,10 @@ class ImagesRestClient extends RestClient {
   getImage = (id: string) => (
     this.get<any>(`${this._apiUrl}${getImageInfoEndpoint(id)}`)
   );
+
+  downloadImage = (url: string) => (
+    this.get<any>(url, { responseType: 'arraybuffer' })
+  );
 }
 
 export const imagesRestClient = new ImagesRestClient({});
