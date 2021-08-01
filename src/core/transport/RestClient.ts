@@ -32,7 +32,7 @@ export class RestClient {
       (response: ApiResponse<ApiResponsePayload<any>>) => {
         if (response.data.status === ApiResponseStatus.Error && response.config.url) {
           // Any status code that lie within the range of 2xx cause this function to trigger
-          const url = new URL(response.config.url );
+          const url = new URL(response.config.url);
 
           if (!isUrlMatch(url.pathname, whitelistUrls)) {
             // notificationManager.error(

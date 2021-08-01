@@ -1,10 +1,15 @@
+import { isUndefined } from 'lodash';
 import {
   ImageMode,
   ImageSettings,
   ImageModeOption,
   ImageLocalStorageKeys,
-  ImageWithSettings
+  ImageWithSettings  
 } from 'apps/images/models';
+import {
+  PaginationDirection,
+  Pagination
+} from 'core/models';
 import Config from 'apps/images/Config';
 import AppConfig from 'core/Config';
 import { localStorage } from 'core/storage/LocalStorage';
@@ -22,10 +27,7 @@ export const getImageUrl = (imageId: string, settings: ImageSettings): string =>
     `${AppConfig.apiUrl}`
   );
 
-  const imageUrl = new URL(`${Config.apiEndpoints.image}/${imageId}/${settings.width}/${settings.height}`, baseUrl)
-
-  // imageUrl = new URL(Config.apiEndpoints.image, imageUrl);
-  // imageUrl = new URL(imageId, imageUrl);
+  const imageUrl = new URL(`${Config.apiEndpoints.image}/${imageId}/${settings.width}/${settings.height}`, baseUrl);
 
   settings.mode?.forEach(mode => {
     if (mode === ImageMode.blur) {
@@ -38,6 +40,15 @@ export const getImageUrl = (imageId: string, settings: ImageSettings): string =>
   });
 
   return imageUrl.href;
+};
+
+export const getImageSrcByDimension = (url: string, width: number, height: number) => {
+  const urlChunks = url.split('/');
+  urlChunks.splice(urlChunks.length - 2, 1);
+  urlChunks.splice(-1, 1)
+
+  const urlWithoutDimensions = urlChunks.join('/');
+  return `${urlWithoutDimensions}/${width}/${height}`
 };
 
 export const getImageModeOptions = (): ImageModeOption[] => (
@@ -62,4 +73,65 @@ export const loadImageWithSettingsFromStorage = (): ImageWithSettings | undefine
   }
 
   return undefined;
+};
+
+export const getInitialPagination = (page: string, limit: string): Pagination => {
+  const defaultLimit = AppConfig.defaultPageSize ? parseInt(AppConfig.defaultPageSize, 10) : 20;
+  const currentPage = page ? parseInt(page, 10) : 1;
+
+  const pagination = {
+    limit: limit ? parseInt(limit, 10) : defaultLimit,
+    current: currentPage,
+    prev: currentPage < 2 ? 1 : currentPage - 1,
+    next: currentPage + 1
+  };
+
+  console.log('getInitialPagination', pagination);
+
+  return pagination;
+};
+
+export const getPagination = (apiHeaderLink: string): Pagination => {
+  const links = apiHeaderLink.split(',');
+  const pagination = {
+    limit: AppConfig.defaultPageSize ? parseInt(AppConfig.defaultPageSize, 10) : 20,
+    prev: 0,
+    next: 0
+  };
+
+  links.forEach((link: string) => {
+    const urls = link.split(/[<>]/).filter(url => url.trim() !== '');
+    const url = new URL(urls[0]);
+    const page = url.searchParams.get('page');
+    const pageLimit = url.searchParams.get('limit');
+    const direction = urls[1].substring(
+      urls[1].indexOf('\"') + 1, 
+      urls[1].lastIndexOf('\"')
+    );
+
+    if (pageLimit) {
+      pagination.limit = parseInt(pageLimit, 10);
+    }
+
+    if (!isUndefined(page) && (direction === PaginationDirection.prev || direction === PaginationDirection.next)) {
+      pagination[direction] = parseInt((page as string), 10);
+    }
+  });
+
+  const prev = pagination.prev || pagination.next - 1;
+  const next = pagination.next || pagination.prev + 1;
+
+  console.log('getPagination', {
+    ...pagination,
+    current: next - 1,
+    prev,
+    next
+  })
+
+  return {
+    ...pagination,
+    current: next - 1,
+    prev,
+    next
+  };
 };

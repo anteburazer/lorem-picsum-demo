@@ -47,3 +47,8 @@ export enum ImageMode {
 export enum ImageLocalStorageKeys {
   imageWithSettings = 'IMAGE_WITH_SETTINGS'
 }
+
+export interface ImageListParams {
+  page: string;
+  limit: string;
+}

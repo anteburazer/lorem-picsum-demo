@@ -12,12 +12,12 @@ import {
 } from 'apps/images/models';
 import { imagesRestClient } from 'apps/images/restClients';
 import { localStorage } from 'core/storage/LocalStorage';
-import { defaultImageSettings } from 'apps/images/utils';
+import { defaultImageSettings, getPagination, getInitialPagination } from 'apps/images/utils';
 import { downloadImage } from 'core/utils';
 
 const errorIdleHandler = {
   actions: 'handleError',
-  target: '#Idle',            
+  target: '#Idle',
 };
 
 const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, ImageMachineState>(
@@ -25,15 +25,18 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
     initial: 'Idle',
     context: {
       images: [],
-      imageWithSettings: undefined
+      imageWithSettings: undefined,
+      pagination: {
+        limit: 20,
+        current: 1,
+        prev: 1,
+        next: 2
+      }
     },
     states: {
       Idle: {
         id: 'Idle',
         on: {
-          FETCH_LIST: {              
-            target: '#FetchingList'
-          },
           FETCH_ITEM: {              
             target: '#FetchingItem'
           },
@@ -46,6 +49,20 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
           DOWNLOAD_ITEM: {              
             target: '#DownloadingItem'
           },
+          FETCH_LIST: {              
+            target: '#FetchingList'
+          },
+          SET_PAGINATION: {
+            actions: 'setPagination'
+          },
+          GO_NEXT: {
+            actions: 'setPagination',
+            target: '#FetchingList'
+          },
+          GO_PREV: {
+            actions: 'setPagination',
+            target: '#FetchingList'
+          }
         },
       },
       FetchingList: {
@@ -53,7 +70,10 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
         invoke: {
           src: 'fetchImages',
           onDone: {
-            actions: 'assignImages',
+            actions: [
+              'assignImages',
+              'assignPagination'
+            ],
             target: '#Idle'
           },
           onError: {
@@ -109,29 +129,57 @@ const imageMachine = createMachine<ImageMachineContext, ImageMachineEvent, Image
   },
   {
     services: {
-      fetchImages: () => imagesRestClient.getImages(1),
+      fetchImages: (context) => imagesRestClient.getImages(context.pagination.current, context.pagination.limit),
       fetchImage: (context, event: any) => imagesRestClient.getImage((event.data as string)),
       updateImage: (context, event: any) => imagesRestClient.getImageBySettings(context.imageWithSettings?.imageId || '', event.data),
       downloadImage: (context, event: any) => imagesRestClient.downloadImage(event.data),
     },
     actions: {
       assignImages: assign<ImageMachineContext, ImageMachineEvent>({
-        images: (context: ImageMachineContext, event: any) => event.data as Image[]
+        images: (context: ImageMachineContext, event: any) => event.data.images as Image[]
+      }),
+      assignPagination: assign<ImageMachineContext, ImageMachineEvent>({
+        pagination: (context: ImageMachineContext, event: any) => {
+          return {
+            ...getPagination(event.data.link)
+          };
+        }
+      }),
+      setPagination: assign<ImageMachineContext, ImageMachineEvent>({
+        pagination: (context: ImageMachineContext, event: any) => {
+          if (event.type === 'GO_NEXT') {
+            return {
+              ...context.pagination,
+              current: context.pagination.current + 1
+            }
+          }
+
+          if (event.type === 'GO_PREV') {
+            return {
+              ...context.pagination,
+              current: context.pagination.current > 1
+                ? context.pagination.current - 1
+                : context.pagination.current
+            }
+          }
+
+          return getInitialPagination(event.data.page, event.data.limit);
+        }
       }),
       assignImageWithSettings: assign<ImageMachineContext, ImageMachineEvent>({
         imageWithSettings: (context: ImageMachineContext, event: any) => event.data as ImageWithSettings
       }),
       updateImageWithSettingsAfterUpdate: assign<ImageMachineContext, ImageMachineEvent>({
         imageWithSettings: (context: ImageMachineContext, event: any) => {
-          const t = context.imageWithSettings
+          const settings = context.imageWithSettings
           ? {
               ...context.imageWithSettings,
               imageSrc: `data:image/jpeg;base64,${Buffer.from(event.data, 'binary').toString('base64')}`
             }
           : context.imageWithSettings;
 
-          console.log('updateImageWithSettingsAfterUpdate', t);
-          return t;
+          console.log('updateImageWithSettingsAfterUpdate', settings);
+          return settings;
         }
       }),
       updateImageWithSettingsAfterFetch: assign<ImageMachineContext, ImageMachineEvent>({

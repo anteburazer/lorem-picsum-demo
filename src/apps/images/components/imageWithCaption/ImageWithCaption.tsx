@@ -10,9 +10,9 @@ interface ImageWithCaptionProps {
 const ImageWithCaption: React.FC<ImageWithCaptionProps> = ({ src, caption, alt }) => {
   return (
     <div className="position-relative">
-      <img src={src} alt={alt} />
+      <img src={src} alt={alt} className="w-100" />
       <div className={styles.caption}>
-        <span>{caption}</span>
+        <span className="text-light">{caption}</span>
       </div>
     </div>
   );
