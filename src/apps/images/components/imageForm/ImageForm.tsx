@@ -1,5 +1,6 @@
 import React from 'react';
-import { useForm, Controller  } from "react-hook-form";
+import { isUndefined } from 'lodash';
+import { useForm, Controller } from "react-hook-form";
 import { Typeahead } from 'react-bootstrap-typeahead';
 import RangeSlider from 'react-bootstrap-range-slider';
 import {
@@ -26,24 +27,36 @@ const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit
     handleSubmit,
     register,
     watch,
+    getValues,
     control,
-    formState: { errors, isDirty },
-  } = useForm();
+    formState: { isDirty, errors, dirtyFields },
+  } = useForm({mode: 'all'});
 
   const currentMode = watch("mode");
 
   const isBlurModeSelected = () => {
     const bluredByDefault = imageSettings.mode.find((mode) => mode === ImageMode.blur);
     const isCurrentModeSelected = currentMode?.find((mode: ImageModeOption) => mode.value === ImageMode.blur);
+    const values = getValues();
 
-    return isCurrentModeSelected || (!isDirty && bluredByDefault)
+    return isCurrentModeSelected || (!isDirty && bluredByDefault) || values.blurValue
       ? true
       : false
   };
 
+  const submit = (data: ImageFormData) => {
+    const formData: ImageFormData = {
+      ...data,
+      mode: dirtyFields.mode ? (data.mode as Array<any>) : imageSettings.mode.map(value => ({ key: value, value })),
+      blurValue: dirtyFields.blurValue ? data.blurValue : imageSettings.blurValue
+    };
+
+    onSubmit(formData);
+  };
+
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(submit)}>
         <div className="row">
           <div className="col col-6">
             <label htmlFor="width" className="form-label">Width</label>
@@ -53,6 +66,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit
               id="width"
               type="number"
               min={1}
+              disabled={disabled}
               defaultValue={imageSettings.width}
               {...register("width", { ...validationRules.width })}
             />
@@ -70,6 +84,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit
               id="height"
               type="number"
               min={1}
+              disabled={disabled}
               defaultValue={imageSettings.height}
               {...register("height", { ...validationRules.height })}
             />
@@ -97,6 +112,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit
                 labelKey="key"
                 highlightOnlyResult
                 multiple
+                disabled={disabled}
               />
             )}
           />
@@ -118,6 +134,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ imageSettings, disabled, onSubmit
                   min={1}
                   max={10}
                   onChange={onChange}
+                  disabled={disabled}
                 />
               )}
             />          

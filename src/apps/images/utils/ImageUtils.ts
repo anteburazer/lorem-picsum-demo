@@ -64,7 +64,7 @@ export const loadImageWithSettingsFromStorage = (): ImageWithSettings | undefine
   if (imageWithSettingsStringified) {
     try {
       const imageWithSettings = JSON.parse(imageWithSettingsStringified);
-      console.log('load Settings From Storage');          
+      console.log('Settings loaded From Storage');          
       return imageWithSettings;
     } catch {
       console.log('Parsing image settings failed');

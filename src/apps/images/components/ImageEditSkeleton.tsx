@@ -1,5 +1,6 @@
 import React from 'react';
 import ImagePlaceholder from 'apps/images/components/imagePlaceholder/ImagePlaceholder';
+import Spinner from 'components/Spinner';
 
 const ImageEditSkeleton: React.FC = () => {
   return (
@@ -7,11 +8,7 @@ const ImageEditSkeleton: React.FC = () => {
       <div className="col-7">
         <ImagePlaceholder />
       </div>
-      <div className="col-5 d-flex justify-content-center align-items-center">
-        <div className="spinner-grow" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
+      <Spinner />
     </div>
   );
 };

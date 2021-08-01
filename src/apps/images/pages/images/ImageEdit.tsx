@@ -1,102 +1,56 @@
 import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useService } from '@xstate/react';
-import { imageMachineService } from 'apps/images/machines';
+import { useService, useMachine } from '@xstate/react';
+import { imageEditMachine } from 'apps/images/machines';
 import {
   EditImageParams,
   ImageFormData,
   ImageSettings,
   ImageMode,
-  ImageWithSettings
+  ImageWithSettings,
+  ImagesMachineContext,
+  ImagesMachineEvent,
+  ImagesMachineState,
 } from 'apps/images/models';
 import ImageEditSkeleton from 'apps/images/components/ImageEditSkeleton';
 import ImageForm from 'apps/images/components/imageForm/ImageForm';
 import ImageWithCaption from 'apps/images/components/imageWithCaption/ImageWithCaption';
-import {
-  getImageListRoute,
-  defaultImageSettings,
-  loadImageWithSettingsFromStorage
-} from 'apps/images/utils';
+import { getImageListRoute } from 'apps/images/utils';
 import styles from 'apps/images/pages/images/ImageEdit.module.scss';
+import Spinner from 'components/Spinner';
+import { ImagesServiceContext } from 'apps/images/App';
 
 const ImageEdit: React.FC = () => {
-  const [state, send] = useService(imageMachineService);
+  const [state, send] = useMachine(imageEditMachine);
   const { imageId } = useParams<EditImageParams>();
 
+  const service = React.useContext(ImagesServiceContext);
+  const [globalState] = useService<ImagesMachineContext, ImagesMachineEvent, ImagesMachineState>(service);
+
   useEffect(() => {
-    /**
-     * Loads the data from different sources
-     */
-    const pageOrchestrator = () => {
-      if (!state.context.imageWithSettings) {
-        const imageWithSettings = loadImageWithSettingsFromStorage();
-  
-        // We have data from storage and we can hidrate the state machine
-        if (imageWithSettings && imageWithSettings.imageId === imageId) {
-          send({
-            type: 'SET_IMAGE_WITH_SETTINGS',
-            data: imageWithSettings
-          });
-  
-          console.log('Image found in the storage');  
-          return;
-        }
-  
-        // There is no data from storage and we need to fetch it
-        // 1. Look at the images array and if it exists get the image from there
-        if (state.context.images?.length) {
-          const img = state.context.images.find(image => image.id === imageId);
-  
-          // 1.1. We found the image in images array so we can hidrate the state machine
-          if (img) {
-            send({
-              type: 'SET_IMAGE_WITH_SETTINGS',
-              data: {
-                ...defaultImageSettings,
-                width: img.width,
-                height: img.height,
-                author: img.author,
-                imageSrc: img.download_url,
-                imageId: img.id
-              }
-            });
-  
-            console.log('Image found in the list');
-          } else {
-            // 1.2. Image not found in the images array so fetch it from the API
-            send({ type: 'FETCH_ITEM', data: imageId });
-            console.log('List is present but Image not found in the list');  
-          }
-        } else {
-          // 2. images array is empty so fetch it from the API
-          send({ type: 'FETCH_ITEM', data: imageId });
-          console.log('List not present. Fetching the image');  
-        }
+    // Initialize the machine. Load the image and it's settings
+    send({
+      type: 'INIT',
+      data: {
+        images: globalState.context.images || [],
+        imageId
       }
-    };
-
-    pageOrchestrator();
-  }, [send, state.context.imageWithSettings, state.context.images, imageId]);
-
-  useEffect(() => {
-    return () => {
-      send({
-        type: 'SET_IMAGE_WITH_SETTINGS',
-        data: undefined
-      });
-    }
-  }, [send]);
+    });
+    
+  }, [send, globalState.context.images, imageId]);
 
   /**
    * Handles the form submission
    * Saves the data to state machine and requests the image updates from the API
    */
   const submitChanges = (imageData: ImageFormData) => {
+    console.log('submitChanges', imageData);
+
     const imageSettingsData: ImageSettings = {
       ...imageData,
       mode: imageData.mode ? imageData.mode.map(mode => mode.key as ImageMode) : [],
       blurValue: imageData.blurValue || 1
-    };
+    };    
 
     send({
       type: 'SET_IMAGE_WITH_SETTINGS',
@@ -125,6 +79,12 @@ const ImageEdit: React.FC = () => {
           alt={imageWithSettings.imageId}
           caption={imageWithSettings.author}
         />
+
+        {state.matches('UpdatingItem') && (
+          <div className="position-absolute w-100 d-flex justify-content-center align-items-center">
+            <Spinner />
+          </div>
+        )}
       </div>
 
       <div className="col-5">
@@ -135,7 +95,7 @@ const ImageEdit: React.FC = () => {
             mode: imageWithSettings.mode,
             blurValue: imageWithSettings.blurValue,            
           }}
-          disabled={state.matches('Updatingtem')}
+          disabled={state.matches('UpdatingItem')}
           onSubmit={submitChanges}
         />
 
@@ -146,25 +106,23 @@ const ImageEdit: React.FC = () => {
         >
           Download image
         </button>
+
+        <div className="mt-4">
+          <Link className="text-light text-decoration-none" to={getImageListRoute()}>
+            <span>Back to list</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="">
-      <nav className="navbar navbar-light bg-light">
-        <Link to={getImageListRoute()}>
-          <span>Back</span>
-        </Link>
-      </nav>
-
-      <div className="container mt-5">
-        {state.context.imageWithSettings
-          ? renderContent(state.context.imageWithSettings)
-          : <ImageEditSkeleton />
-        }
-      </div>
-    </div>    
+    <div className="container mt-5">
+      {state.context.imageWithSettings
+        ? renderContent(state.context.imageWithSettings)
+        : <ImageEditSkeleton />
+      }
+    </div>   
   );
 };
 

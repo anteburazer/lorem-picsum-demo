@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface PaginationProps {
+  className?: string;
   isPrevDisabled?: boolean,
   isNextDisabled?: boolean,
   onPrevClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
@@ -8,13 +9,14 @@ interface PaginationProps {
 }
 
 const Pagination: React.FC<PaginationProps> = ({
+  className,
   isPrevDisabled,
   isNextDisabled,
   onPrevClick,
   onNextClick
 }) => {
   return (
-    <nav aria-label="Navigation">
+    <nav aria-label="Navigation" className={className}>
       <ul className="pagination">
         <li className={`page-item ${isPrevDisabled ? 'disabled' : ''}`}>
           <a className="page-link" href="/" onClick={onPrevClick}>

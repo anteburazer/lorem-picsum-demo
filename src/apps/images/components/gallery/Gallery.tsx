@@ -25,6 +25,12 @@ const Gallery: React.FC<GalleryProps> = ({ images }) => {
           </Link>
         </div>
       ))}
+
+      {!images.length && (
+        <div className="mt-4 mb-4 d-flex justify-content-center">
+          <h4>No images</h4>
+        </div>
+      )}
     </div>
   );
 };

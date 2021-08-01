@@ -1,1 +1,2 @@
-export * from './ImageMachine';
+export * from './ImageEditMachine';
+export * from './ImageListMachine';

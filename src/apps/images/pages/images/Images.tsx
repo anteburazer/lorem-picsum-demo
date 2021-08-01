@@ -1,15 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useService } from '@xstate/react';
-import { imageMachineService } from 'apps/images/machines';
+import { useService, useMachine } from '@xstate/react';
+import { imageListMachine } from 'apps/images/machines';
 import Gallery from 'apps/images/components/gallery/Gallery';
 import SearchInput from 'components/SearchInput';
 import Pagination from 'components/Pagination';
-import { Image } from 'apps/images/models';
+import {
+  Image,
+  ImagesMachineContext,
+  ImagesMachineEvent,
+  ImagesMachineState,
+} from 'apps/images/models';
 import { PaginationDirection } from 'core/models';
 import { useQuery } from 'core/hooks';
+import { ImagesServiceContext } from 'apps/images/App';
 
 const Images: React.FC = () => {
-  const [state, send] = useService(imageMachineService);
+  // Initialize local state machine
+  const [state, send, service] = useMachine(imageListMachine);
+
+  // Consume the global state machine through React context
+  const imagesMachineService = React.useContext(ImagesServiceContext);
+  const [globalState, sendToGlobal] = useService<ImagesMachineContext, ImagesMachineEvent, ImagesMachineState>(imagesMachineService);
 
   const [imagesFiltered, setImagesFiltered] = useState<Image[]>([]);
   const query = useQuery();
@@ -18,15 +29,18 @@ const Images: React.FC = () => {
    * Fetch images on component mount
    */
   useEffect(() => {
+    const pageQueryParam = query.get('page');
+    const limitQueryParam = query.get('limit');
+
+    // Read the query string and initialize the machine 
     send({
-      type: 'SET_PAGINATION',
+      type: 'INIT',
       data: {
-        page: query.get('page'),
-        limit: query.get('limit')
+        page: pageQueryParam ? parseInt(pageQueryParam, 10) : globalState.context.currentPage,
+        limit: limitQueryParam ? parseInt(limitQueryParam, 10) : 20,
+        images: globalState.context.images || []
       }
     });
-
-    send({ type: 'FETCH_LIST' });
   }, [send]);
 
   useEffect(() => {
@@ -35,6 +49,34 @@ const Images: React.FC = () => {
     }
   }, [state.context.images]);
 
+  useEffect(() => {
+    // Subscribe to local machine changes
+    const subscription = service.subscribe((state) => {
+      // Send current page to the global machine
+      if (globalState.context.currentPage !== state.context.pagination.current) {
+        sendToGlobal({
+          type: 'SET_CURRENT_PAGE',
+          data: state.context.pagination.current
+        });
+      }
+    });
+
+    service.onEvent((event: any) => {
+      if (event.type === 'done.invoke.fetchImages') {
+        // Send the images to the global machine after we fetch them
+        sendToGlobal({
+          type: 'SET_IMAGES',
+          data: event.data.images
+        });
+      }
+    });
+  
+    return subscription.unsubscribe;
+  }, [service, state.context.pagination]);
+
+  /**
+   * Handle changes from the search input and filter the images
+   */
   const searchImages = (searchTerm: string) => (
     setImagesFiltered(state.context.images
       ? state.context.images.filter((image: Image) => image.author.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -42,40 +84,72 @@ const Images: React.FC = () => {
     )
   );
 
+  /**
+   * Handle the pagination links click and send events to the state machine to fetch new items
+   */
   const handlePageChange = (e: React.MouseEvent<HTMLAnchorElement>, direction: PaginationDirection) => {
     e.preventDefault();
 
-    if (direction === PaginationDirection.prev) {
-      send({ type: 'GO_PREV' });
+    if (direction === PaginationDirection.prev && state.context.pagination.current > 1) {
+      send({
+        type: 'GO_PREV',
+        data: {
+          page: state.context.pagination.current - 1,
+          limit: state.context.pagination.limit
+        }
+      });
     }
 
-    if (direction === PaginationDirection.next) {
-      send({ type: 'GO_NEXT' });
+    if (direction === PaginationDirection.next && state.context.pagination.next > state.context.pagination.current) {
+      send({
+        type: 'GO_NEXT',
+        data: {
+          page: state.context.pagination.current + 1,
+          limit: state.context.pagination.limit
+        }
+      });
     }
+
+    sendToGlobal({
+      type: 'SET_CURRENT_PAGE',
+      data: state.context.pagination.current
+    });
   };
+
+  const renderErrorPage = () => (
+    <h3 className="mt-5 text-center">Sorry, something went wrong</h3>
+  );
+
+  const renderContent = () => (
+    <>
+      <SearchInput
+        className="mb-4"
+        onChange={searchImages}
+      />
+
+      <Gallery images={imagesFiltered} />
+
+      <span>Current Page: {state.context.pagination.current}</span>
+
+      <Pagination
+        className="d-flex justify-content-center"
+        isPrevDisabled={state.context.pagination.current === state.context.pagination.prev}
+        isNextDisabled={state.context.pagination.current === state.context.pagination.next}
+        onPrevClick={(e: React.MouseEvent<HTMLAnchorElement>) => handlePageChange(e, PaginationDirection.prev)}
+        onNextClick={(e: React.MouseEvent<HTMLAnchorElement>) => handlePageChange(e, PaginationDirection.next)}
+      />
+    </>
+  );
 
   return (
     <div className="container mt-5">
       <div className="mb-5">
         <h1 className="text-center">Synthesia image demo</h1>
         <p className="text-center">Click on the image to edit</p>
-        {JSON.stringify(state.context.pagination)}
       </div>
 
-      <div className="mb-4">
-        <SearchInput onChange={searchImages} />
-      </div>
-
-      <Gallery images={imagesFiltered} />
-
-      <div className="d-flex justify-content-center">
-        <Pagination
-          isPrevDisabled={state.context.pagination.current === state.context.pagination.prev}
-          isNextDisabled={state.context.pagination.current === state.context.pagination.next}
-          onPrevClick={(e: React.MouseEvent<HTMLAnchorElement>) => handlePageChange(e, PaginationDirection.prev)}
-          onNextClick={(e: React.MouseEvent<HTMLAnchorElement>) => handlePageChange(e, PaginationDirection.next)}
-        />
-      </div>
+      {state.matches('Idle') && renderContent()}
+      {state.matches('Failed') && renderErrorPage()}
     </div>
   );
 };
