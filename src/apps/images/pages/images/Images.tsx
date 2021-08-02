@@ -4,6 +4,7 @@ import { imageListMachine } from 'apps/images/machines';
 import Gallery from 'apps/images/components/gallery/Gallery';
 import SearchInput from 'components/SearchInput';
 import Pagination from 'components/Pagination';
+import Spinner from 'components/Spinner';
 import {
   Image,
   ImagesMachineContext,
@@ -25,14 +26,12 @@ const Images: React.FC = () => {
   const [imagesFiltered, setImagesFiltered] = useState<Image[]>([]);
   const query = useQuery();
 
-  /**
-   * Fetch images on component mount
-   */
+  /* eslint-disable */
   useEffect(() => {
     const pageQueryParam = query.get('page');
     const limitQueryParam = query.get('limit');
 
-    // Read the query string and initialize the machine 
+    // Read the query string and initialize the machine
     send({
       type: 'INIT',
       data: {
@@ -41,22 +40,14 @@ const Images: React.FC = () => {
         images: globalState.context.images || []
       }
     });
-  }, [send]);
 
-  useEffect(() => {
-    if (state.context.images) {
-      setImagesFiltered(state.context.images);
-    }
-  }, [state.context.images]);
-
-  useEffect(() => {
     // Subscribe to local machine changes
-    const subscription = service.subscribe((state) => {
+    const subscription = service.subscribe((newState) => {
       // Send current page to the global machine
-      if (globalState.context.currentPage !== state.context.pagination.current) {
+      if (globalState.context.currentPage !== newState.context.pagination.current) {
         sendToGlobal({
           type: 'SET_CURRENT_PAGE',
-          data: state.context.pagination.current
+          data: newState.context.pagination.current
         });
       }
     });
@@ -72,7 +63,14 @@ const Images: React.FC = () => {
     });
   
     return subscription.unsubscribe;
-  }, [service, state.context.pagination]);
+  }, []);
+  /* eslint-enable */
+
+  useEffect(() => {
+    if (state.context.images) {
+      setImagesFiltered(state.context.images);
+    }
+  }, [state.context.images]);
 
   /**
    * Handle changes from the search input and filter the images
@@ -120,6 +118,12 @@ const Images: React.FC = () => {
     <h3 className="mt-5 text-center">Sorry, something went wrong</h3>
   );
 
+  const renderLoader = () => (
+    <div className="pt-5 d-flex justify-content-center align-items-center">
+      <Spinner />
+    </div>
+  );
+
   const renderContent = () => (
     <>
       <SearchInput
@@ -148,6 +152,7 @@ const Images: React.FC = () => {
         <p className="text-center">Click on the image to edit</p>
       </div>
 
+      {state.matches('FetchingList') && !state.context.images?.length && renderLoader()}
       {state.matches('Idle') && renderContent()}
       {state.matches('Failed') && renderErrorPage()}
     </div>

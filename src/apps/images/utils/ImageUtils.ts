@@ -105,8 +105,10 @@ export const getPagination = (apiHeaderLink: string): Pagination => {
     const page = url.searchParams.get('page');
     const pageLimit = url.searchParams.get('limit');
     const direction = urls[1].substring(
+      /* eslint-disable */
       urls[1].indexOf('\"') + 1, 
       urls[1].lastIndexOf('\"')
+      /* eslint-enable */
     );
 
     if (pageLimit) {
@@ -123,14 +125,14 @@ export const getPagination = (apiHeaderLink: string): Pagination => {
 
   console.log('getPagination', {
     ...pagination,
-    current: next - 1,
+    current: pagination.next ? next - 1 : prev + 1,
     prev,
     next
   })
 
   return {
     ...pagination,
-    current: next - 1,
+    current: pagination.next ? next - 1 : prev + 1,
     prev,
     next
   };

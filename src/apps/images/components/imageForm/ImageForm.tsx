@@ -1,5 +1,4 @@
 import React from 'react';
-import { isUndefined } from 'lodash';
 import { useForm, Controller } from "react-hook-form";
 import { Typeahead } from 'react-bootstrap-typeahead';
 import RangeSlider from 'react-bootstrap-range-slider';
